@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space Defender: Flying Car Edition</title>
+
+  <style>
+    /* ---------- Base layout ---------- */
+    :root {
+      --cyan: #00eaff;
+      --pink: #ff2bd6;
+      --yellow: #ffe600;
+      --panel: rgba(6, 12, 35, 0.82);
+      --border: rgba(0, 234, 255, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      color: white;
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(0, 234, 255, 0.12), transparent 25%),
+        radial-gradient(circle at 80% 80%, rgba(255, 43, 214, 0.1), transparent 25%),
+        linear-gradient(135deg, #02030c, #060b25 50%, #02030c);
+    }
+
+    .game-wrapper {
+      width: min(1100px, 100%);
+      height: 100vh;
+      margin: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: 0 0 24px rgba(0, 234, 255, 0.16);
+      backdrop-filter: blur(10px);
+      z-index: 3;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--cyan);
+      font-size: clamp(1.1rem, 3vw, 2rem);
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px var(--cyan);
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+      font-size: clamp(0.78rem, 2vw, 1rem);
+    }
+
+    .stat {
+      min-width: 70px;
+      text-align: center;
+      color: #d9faff;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 3px;
+      color: var(--yellow);
+      font-size: 1.15em;
+    }
+
+    .game-container {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: #01020a;
+      box-shadow:
+        inset 0 0 50px rgba(0, 234, 255, 0.08),
+        0 0 28px rgba(0, 0, 0, 0.6);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ---------- Menus and overlays ---------- */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(1, 2, 10, 0.7);
+      backdrop-filter: blur(5px);
+    }
+
+    .panel {
+      width: min(500px, 100%);
+      padding: 28px;
+      text-align: center;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: rgba(3, 8, 28, 0.9);
+      box-shadow: 0 0 35px rgba(0, 234, 255, 0.2);
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      color: var(--cyan);
+      text-shadow: 0 0 12px var(--cyan);
+    }
+
+    .panel p {
+      line-height: 1.6;
+      color: #c9e8ee;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    button {
+      border: 1px solid var(--cyan);
+      border-radius: 10px;
+      padding: 10px 18px;
+      color: white;
+      font-weight: bold;
+      background: linear-gradient(135deg, #073c54, #32105c);
+      cursor: pointer;
+      box-shadow: 0 0 14px rgba(0, 234, 255, 0.3);
+      transition: 0.2s ease;
+    }
+
+    button:hover,
+    button:focus-visible {
+      transform: translateY(-2px);
+      color: #001016;
+      background: var(--cyan);
+      box-shadow: 0 0 22px var(--cyan);
+      outline: none;
+    }
+
+    .top-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ---------- Mobile controls ---------- */
+    .mobile-controls {
+      display: none;
+      justify-content: center;
+      gap: 22px;
+      padding: 3px 0;
+    }
+
+    .mobile-controls button {
+      width: 74px;
+      height: 45px;
+      font-size: 1.2rem;
+      touch-action: none;
+      user-select: none;
+    }
+
+    @media (max-width: 650px) {
+      .game-wrapper {
+        padding: 8px;
+      }
+
+      header {
+        align-items: flex-start;
+      }
+
+      .stats {
+        gap: 5px;
+      }
+
+      .stat {
+        min-width: 52px;
+      }
+
+      .top-buttons button {
+        padding: 8px 10px;
+        font-size: 0.75rem;
+      }
+
+      .mobile-controls {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="game-wrapper">
+    <header>
+      <h1>SPACE DEFENDER</h1>
+
+      <div class="stats" aria-label="Game statistics">
+        <div class="stat">SCORE<strong id="score">0</strong></div>
+        <div class="stat">LIVES<strong id="lives">3</strong></div>
+        <div class="stat">LEVEL<strong id="level">1</strong></div>
+        <div class="top-buttons">
+          <button id="startBtn">START</button>
+          <button id="pauseBtn">PAUSE</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="game-container" aria-label="Space Defender game area">
+      <canvas id="gameCanvas"></canvas>
+
+      <div id="welcomeOverlay" class="overlay">
+        <div class="panel">
+          <h2>Defend Earth From The Future</h2>
+          <p>
+            Destroy incoming asteroids and Tesla-inspired electric flying cars
+            before they reach your spaceship.
+          </p>
+          <p>
+            Move with <b>← →</b> or <b>A / D</b>  
+
+            Fire lasers with <b>SPACEBAR</b>
+          </p>
+          <button id="welcomeStartBtn">START MISSION</button>
+        </div>
+      </div>
+
+      <div id="gameOverOverlay" class="overlay hidden">
+        <div class="panel">
+          <h2>MISSION FAILED</h2>
+          <p>Your final score: <strong id="finalScore">0</strong></p>
+          <button id="restartBtn">RESTART MISSION</button>
+        </div>
+      </div>
+
+      <div id="pauseOverlay" class="overlay hidden">
+        <div class="panel">
+          <h2>GAME PAUSED</h2>
+          <p>Press the pause button or the P key to continue.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="mobile-controls">
+      <button id="leftBtn" aria-label="Move left">◀</button>
+      <button id="fireBtn" aria-label="Fire laser">FIRE</button>
+      <button id="rightBtn" aria-label="Move right">▶</button>
+    </div>
+  </main>
+
+  <script>
+    /*
+      Space Defender
+      Pure HTML, CSS, and vanilla JavaScript.
+      The game uses Canvas for rendering and requestAnimationFrame
+      for a smooth animation loop.
+    */
+
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const scoreElement = document.getElementById("score");
+    const livesElement = document.getElementById("lives");
+    const levelElement = document.getElementById("level");
+
+    const startBtn = document.getElementById("startBtn");
+    const welcomeStartBtn = document.getElementById("welcomeStartBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+
+    const welcomeOverlay = document.getElementById("welcomeOverlay");
+    const gameOverOverlay = document.getElementById("gameOverOverlay");
+    const pauseOverlay = document.getElementById("pauseOverlay");
+    const finalScoreElement = document.getElementById("finalScore");
+
+    const leftBtn = document.getElementById("leftBtn");
+    const rightBtn = document.getElementById("rightBtn");
+    const fireBtn = document.getElementById("fireBtn");
+
+    let width = 0;
+    let height = 0;
+    let animationId = null;
+
+    let gameRunning = false;
+    let gamePaused = false;
+    let score = 0;
+    let lives = 3;
+    let level = 1;
+    let spawnTimer = 0;
+    let lastTime = 0;
+
+    const keys = {
+      left: false,
+      right: false,
+      fire: false
+    };
+
+    const stars = [];
+    const lasers = [];
+    const enemies = [];
+    const particles = [];
+
+    const player = {
+      x: 0,
+      y: 0,
+      width: 54,
+      height: 38,
+      speed: 430,
+      cooldown: 0
+    };
+
+    // Adjust canvas resolution to match the visible game area.
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+      width = rect.width;
+      height = rect.height;
+
+      canvas.width = width * pixelRatio;
+      canvas.height = height * pixelRatio;
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+      player.y = height - 72;
+      player.x = Math.max(0, Math.min(player.x || width / 2, width - player.width));
+
+      createStars();
+    }
+
+    // Create a moving star field for the space background.
+    function createStars() {
+      stars.length = 0;
+
+      const count = Math.max(80, Math.floor(width * height / 7500));
+
+      for (let i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          radius: Math.random() * 1.7 + 0.2,
+          speed: Math.random() * 55 + 15,
+          alpha: Math.random() * 0.8 + 0.2
+        });
+      }
+    }
+
+    function resetGame() {
+      score = 0;
+      lives = 3;
+      level = 1;
+      spawnTimer = 0;
+      lastTime = 0;
+
+      lasers.length = 0;
+      enemies.length = 0;
+      particles.length = 0;
+
+      player.x = width / 2 - player.width / 2;
+      player.y = height - 72;
+
+      updateStats();
+    }
+
+    function startGame() {
+      resetGame();
+      gameRunning = true;
+      gamePaused = false;
+
+      welcomeOverlay.classList.add("hidden");
+      gameOverOverlay.classList.add("hidden");
+      pauseOverlay.classList.add("hidden");
+
+      if (!animationId) {
+        animationId = requestAnimationFrame(gameLoop);
+      }
+    }
+
+    function endGame() {
+      gameRunning = false;
+      gamePaused = false;
+      finalScoreElement.textContent = score;
+      gameOverOverlay.classList.remove("hidden");
+    }
+
+    function togglePause() {
+      if (!gameRunning) return;
+
+      gamePaused = !gamePaused;
+      pauseOverlay.classList.toggle("hidden", !gamePaused);
+      pauseBtn.textContent = gamePaused ? "RESUME" : "PAUSE";
+    }
+
+    function updateStats() {
+      scoreElement.textContent = score;
+      livesElement.textContent = lives;
+      levelElement.textContent = level;
+    }
+
+    // Create an asteroid or Tesla-inspired flying car enemy.
+    function spawnEnemy() {
+      const isCar = Math.random() < Math.min(0.2 + level * 0.025, 0.5);
+      const size = isCar ? 62 : Math.random() * 28 + 28;
+
+      enemies.push({
+        type: isCar ? "car" : "asteroid",
+        x: Math.random() * (width - size),
+        y: -size - 10,
+        size,
+        speed: (isCar ? 100 : 85) + Math.random() * 65 + level * 13,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 2.5,
+        health: isCar ? 2 : 1,
+        color: isCar ? "#ff2bd6" : "#8a8b9d"
+      });
+    }
+
+    function shootLaser() {
+      if (player.cooldown > 0) return;
+
+      lasers.push({
+        x: player.x + player.width / 2 - 2,
+        y: player.y - 12,
+        width: 4,
+        height: 18,
+        speed: 680
+      });
+
+      player.cooldown = 0.18;
+    }
+
+    function createExplosion(x, y, color) {
+      for (let i = 0; i < 16; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 150 + 50;
+
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 0.7,
+          maxLife: 0.7,
+          color
+        });
+      }
+    }
+
+    function update(delta) {
+      // Move stars.
+      for (const star of stars) {
+        star.y += star.speed * delta;
+
+        if (star.y > height) {
+          star.y = -star.radius;
+          star.x = Math.random() * width;
+        }
+      }
+
+      // Move player.
+      if (keys.left) player.x -= player.speed * delta;
+      if (keys.right) player.x += player.speed * delta;
+
+      player.x = Math.max(0, Math.min(width - player.width, player.x));
+
+      // Fire continuously while the fire key is held.
+      if (keys.fire) shootLaser();
+
+      player.cooldown = Math.max(0, player.cooldown - delta);
+
+      // Spawn enemies faster at higher levels.
+      spawnTimer -= delta;
+      const spawnDelay = Math.max(0.25, 0.85 - level * 0.055);
+
+      if (spawnTimer <= 0) {
+        spawnEnemy();
+        spawnTimer = spawnDelay;
+      }
+
+      // Move lasers.
+      for (let i = lasers.length - 1; i >= 0; i--) {
+        lasers[i].y -= lasers[i].speed * delta;
+
+        if (lasers[i].y < -30) {
+          lasers.splice(i, 1);
+        }
+      }
+
+      // Move enemies and test collisions.
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const enemy = enemies[i];
+
+        enemy.y += enemy.speed * delta;
+        enemy.rotation += enemy.rotationSpeed * delta;
+
+        if (enemy.y > height + enemy.size) {
+          enemies.splice(i, 1);
+          lives--;
+          updateStats();
+
+          if (lives <= 0) endGame();
+          continue;
+        }
+
+        // Collision with the player.
+        if (rectCircleCollision(player, enemy)) {
+          createExplosion(enemy.x + enemy.size / 2, enemy.y + enemy.size / 2, enemy.color);
+          enemies.splice(i, 1);
+          lives--;
+          updateStats();
+
+          if (lives <= 0) endGame();
+          continue;
+        }
+
+        // Collision with lasers.
+        for (let j = lasers.length - 1; j >= 0; j--) {
+          const laser = lasers[j];
+
+          if (laserHitsEnemy(laser, enemy)) {
+            lasers.splice(j, 1);
+            enemy.health--;
+
+            if (enemy.health <= 0) {
+              createExplosion(
+                enemy.x + enemy.size / 2,
+                enemy.y + enemy.size / 2,
+                enemy.color
+              );
+
+              enemies.splice(i, 1);
+              score += enemy.type === "car" ? 25 : 10;
+
+              // Level increases every 100 points.
+              level = Math.floor(score / 100) + 1;
+              updateStats();
+            }
+
+            break;
+          }
+        }
+      }
+
+      // Update explosion particles.
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const particle = particles[i];
+
+        particle.x += particle.vx * delta;
+        particle.y += particle.vy * delta;
+        particle.life -= delta;
+
+        if (particle.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    function rectCircleCollision(rect, enemy) {
+      const centerX = enemy.x + enemy.size / 2;
+      const centerY = enemy.y + enemy.size / 2;
+
+      const closestX = Math.max(rect.x, Math.min(centerX, rect.x + rect.width));
+      const closestY = Math.max(rect.y, Math.min(centerY, rect.y + rect.height));
+
+      const dx = centerX - closestX;
+      const dy = centerY - closestY;
+
+      return dx * dx + dy * dy < (enemy.size * 0.42) ** 2;
+    }
+
+    function laserHitsEnemy(laser, enemy) {
+      return (
+        laser.x < enemy.x + enemy.size &&
+        laser.x + laser.width > enemy.x &&
+        laser.y < enemy.y + enemy.size &&
+        laser.y + laser.height > enemy.y
+      );
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+
+      drawBackground();
+      drawStars();
+
+      for (const laser of lasers) drawLaser(laser);
+      for (const enemy of enemies) drawEnemy(enemy);
+      for (const particle of particles) drawParticle(particle);
+
+      if (gameRunning) drawPlayer();
+    }
+
+    function drawBackground() {
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, "#020313");
+      gradient.addColorStop(0.5, "#07123b");
+      gradient.addColorStop(1, "#030514");
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // Neon horizon glow.
+      const horizon = ctx.createRadialGradient(
+        width / 2,
+        height,
+        5,
+        width / 2,
+        height,
+        height * 0.8
+      );
+
+      horizon.addColorStop(0, "rgba(0, 234, 255, 0.17)");
+      horizon.addColorStop(1, "rgba(0, 234, 255, 0)");
+
+      ctx.fillStyle = horizon;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function drawStars() {
+      for (const star of stars) {
+        ctx.globalAlpha = star.alpha;
+        ctx.fillStyle = "#d8fbff";
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = 1;
+    }
+
+    function drawPlayer() {
+      const x = player.x;
+      const y = player.y;
+
+      ctx.save();
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = "#00eaff";
+
+      // Engine flame.
+      ctx.fillStyle = "#ffb300";
+      ctx.beginPath();
+      ctx.moveTo(x + 16, y + player.height - 2);
+      ctx.lineTo(x + 27, y + player.height + 22 + Math.random() * 8);
+      ctx.lineTo(x + 37, y + player.height - 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Spaceship body.
+      const shipGradient = ctx.createLinearGradient(x, y, x, y + player.height);
+      shipGradient.addColorStop(0, "#e9ffff");
+      shipGradient.addColorStop(0.35, "#00eaff");
+      shipGradient.addColorStop(1, "#0874b7");
+
+      ctx.fillStyle = shipGradient;
+      ctx.beginPath();
+      ctx.moveTo(x + player.width / 2, y - 8);
+      ctx.lineTo(x + player.width, y + player.height);
+      ctx.lineTo(x + player.width / 2, y + player.height - 10);
+      ctx.lineTo(x, y + player.height);
+      ctx.closePath();
+      ctx.fill();
+
+      // Cockpit.
+      ctx.fillStyle = "#15205d";
+      ctx.beginPath();
+      ctx.ellipse(x + player.width / 2, y + 12, 10, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawLaser(laser) {
+      ctx.save();
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = "#ffe600";
+      ctx.fillStyle = "#ffe600";
+      ctx.fillRect(laser.x, laser.y, laser.width, laser.height);
+      ctx.restore();
+    }
+
+    function drawEnemy(enemy) {
+      const centerX = enemy.x + enemy.size / 2;
+      const centerY = enemy.y + enemy.size / 2;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(enemy.rotation);
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = enemy.color;
+
+      if (enemy.type === "asteroid") {
+        drawAsteroid(enemy.size);
+      } else {
+        drawFlyingCar(enemy.size);
+      }
+
+      ctx.restore();
+    }
+
+    function drawAsteroid(size) {
+      const points = 9;
+      const radius = size / 2;
+
+      ctx.fillStyle = "#72758b";
+      ctx.strokeStyle = "#c5c9e1";
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+
+      for (let i = 0; i < points; i++) {
+        const angle = (Math.PI * 2 * i) / points;
+        const randomRadius = radius * (0.75 + Math.random() * 0.25);
+        const x = Math.cos(angle) * randomRadius;
+        const y = Math.sin(angle) * randomRadius;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#45475a";
+      ctx.beginPath();
+      ctx.arc(-size * 0.13, -size * 0.1, size * 0.1, 0, Math.PI * 2);
+      ctx.arc(size * 0.18, size * 0.16, size * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawFlyingCar(size) {
+      const widthCar = size;
+      const heightCar = size * 0.5;
+
+      // Neon electric flying car body.
+      const carGradient = ctx.createLinearGradient(
+        0,
+        -heightCar / 2,
+        0,
+        heightCar / 2
+      );
+
+      carGradient.addColorStop(0, "#ff9bf1");
+      carGradient.addColorStop(0.45, "#ff2bd6");
+      carGradient.addColorStop(1, "#6c126e");
+
+      ctx.fillStyle = carGradient;
+      ctx.strokeStyle = "#ffd6fa";
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.roundRect(
+        -widthCar / 2,
+        -heightCar / 2,
+        widthCar,
+        heightCar,
+        heightCar / 2
+      );
+      ctx.fill();
+      ctx.stroke();
+
+      // Glass roof.
+      ctx.fillStyle = "#06183f";
+      ctx.beginPath();
+      ctx.moveTo(-widthCar * 0.25, -heightCar * 0.42);
+      ctx.lineTo(widthCar * 0.2, -heightCar * 0.42);
+      ctx.lineTo(widthCar * 0.32, -heightCar * 0.05);
+      ctx.lineTo(-widthCar * 0.35, -heightCar * 0.05);
+      ctx.closePath();
+      ctx.fill();
+
+      // Flying thrusters.
+      ctx.fillStyle = "#00eaff";
+      ctx.shadowColor = "#00eaff";
+      ctx.shadowBlur = 12;
+
+      ctx.beginPath();
+      ctx.arc(-widthCar * 0.38, heightCar * 0.3, 5, 0, Math.PI * 2);
+      ctx.arc(widthCar * 0.38, heightCar * 0.3, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawParticle(particle) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, particle.life / particle.maxLife);
+      ctx.fillStyle = particle.color;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = particle.color;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function gameLoop(timestamp) {
+      animationId = requestAnimationFrame(gameLoop);
+
+      if (!lastTime) lastTime = timestamp;
+      const delta = Math.min((timestamp - lastTime) / 1000, 0.05);
+      lastTime = timestamp;
+
+      if (gameRunning && !gamePaused) {
+        update(delta);
+      }
+
+      draw();
+    }
+
+    // Keyboard controls.
+    window.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+
+      if (["arrowleft", "arrowright", " ", "a", "d", "p"].includes(key)) {
+        event.preventDefault();
+      }
+
+      if (key === "arrowleft" || key === "a") keys.left = true;
+      if (key === "arrowright" || key === "d") keys.right = true;
+      if (key === " ") keys.fire = true;
+      if (key === "p") togglePause();
+    });
+
+    window.addEventListener("keyup", (event) => {
+      const key = event.key.toLowerCase();
+
+      if (key === "arrowleft" || key === "a") keys.left = false;
+      if (key === "arrowright" || key === "d") keys.right = false;
+      if (key === " ") keys.fire = false;
+    });
+
+    // Mobile and touch controls.
+    function holdButton(button, keyName) {
+      const start = (event) => {
+        event.preventDefault();
+        keys[keyName] = true;
+      };
+
+      const stop = (event) => {
+        event.preventDefault();
+        keys[keyName] = false;
+      };
+
+      button.addEventListener("pointerdown", start);
+      button.addEventListener("pointerup", stop);
+      button.addEventListener("pointerleave", stop);
+      button.addEventListener("pointercancel", stop);
+    }
+
+    holdButton(leftBtn, "left");
+    holdButton(rightBtn, "right");
+    holdButton(fireBtn, "fire");
+
+    startBtn.addEventListener("click", startGame);
+    welcomeStartBtn.addEventListener("click", startGame);
+    restartBtn.addEventListener("click", startGame);
+    pauseBtn.addEventListener("click", togglePause);
+
+    window.addEventListener("resize", resizeCanvas);
+
+    // Initial setup.
+    resizeCanvas();
+    resetGame();
+    draw();
+  </script>
+</body>
+</html>
+
