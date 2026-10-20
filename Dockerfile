@@ -1,12 +1,9 @@
-# Use a lightweight Nginx web server
+# Lightweight Nginx server for the VoltRide static website
 FROM nginx:alpine
 
-# Copy the game into Nginx's default web directory
 COPY index.html /usr/share/nginx/html/index.html
+COPY styles.css /usr/share/nginx/html/styles.css
+COPY script.js /usr/share/nginx/html/script.js
 
-# The container listens on port 80
 EXPOSE 80
-
-# Start Nginx in the foreground
 CMD ["nginx", "-g", "daemon off;"]
-
